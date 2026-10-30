@@ -16,10 +16,7 @@ func IsValidIP(ipStr string) (valid bool) {
 	return
 }
 
-func Connect(host string, port string, timeout time.Duration, wg *sync.WaitGroup) error {
-
-	defer wg.Done()
-
+func Connect(host string, port string, timeout time.Duration) error {
 	// DialTimeout sets a deadline for the connection attempt
 	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), timeout)
 	if err != nil {
@@ -38,21 +35,21 @@ func ScanIp(ipAddr string) error {
 
 	if !valid {
 		err := fmt.Errorf("Invalid IP address")
-		fmt.Println("Error: ", err)
 		return err
 	}
 
 	ch := make(chan struct{}, 100)
 	wg := new(sync.WaitGroup)
 
-	for i := 0; i < 65536; i++ {
+	for i := 1; i < 65536; i++ {
 		wg.Add(1)
 
 		ch <- struct{}{}
 
 		go func(port int) {
+			defer wg.Done()
 			defer func() { <-ch }()
-			err := Connect(ipAddr, strconv.Itoa(port), time.Second, wg)
+			err := Connect(ipAddr, strconv.Itoa(port), time.Second)
 			if err == nil {
 				fmt.Println("Port ", ipAddr, ":", port, " is open.")
 			}
