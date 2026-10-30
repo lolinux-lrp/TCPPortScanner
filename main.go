@@ -6,28 +6,30 @@ import (
 	"net"
 	"os"
 	"strconv"
-	//"sync"
+	"sync"
 	"time"
 )
 
 func IsValidIP(ipStr string) (valid bool) {
 	ip := net.ParseIP(ipStr)
 	valid = ip != nil
-	return 
+	return
 }
 
-func connect(host string, port string, timeout time.Duration/* , wg *sync.WaitGroup, ch chan bool*/) error {
-	
-    // DialTimeout sets a deadline for the connection attempt
-    conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), timeout)
-    if err != nil {
+func connect(host string, port string, timeout time.Duration, wg *sync.WaitGroup) error {
+
+	defer wg.Done()
+
+	// DialTimeout sets a deadline for the connection attempt
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), timeout)
+	if err != nil {
 		return err
 	}
-	if conn != nil { //if conn is nil calling .Close() will give invalid memory address error 
+	if conn != nil { //if conn is nil calling .Close() will give invalid memory address error
 		defer conn.Close()
 	}
-		
-	return nil;
+
+	return nil
 }
 
 func ScanIp(ipAddr string) error {
@@ -40,16 +42,25 @@ func ScanIp(ipAddr string) error {
 		return err
 	}
 
-	// ch := make(chan bool,100);
-	// wg := new(sync.WaitGroup);
+	ch := make(chan struct{}, 100)
+	wg := new(sync.WaitGroup)
 
-	for port := 0; port < 65536; port++ {
-		//wg.Add(1);
-		err := connect(ipAddr,strconv.Itoa(port),time.Second)
-		if err == nil {
-			fmt.Println("Port ", ipAddr,":",port, " is open.")
-		}
+	for i := 0; i < 65536; i++ {
+		wg.Add(1)
+
+		ch <- struct{}{}
+
+		go func(port int) {
+			defer func() { <-ch }()
+			err := connect(ipAddr, strconv.Itoa(port), time.Second, wg)
+			if err == nil {
+				fmt.Println("Port ", ipAddr, ":", port, " is open.")
+			}
+		}(i)
+
 	}
+	wg.Wait()
+
 	return nil
 }
 
