@@ -16,7 +16,7 @@ func IsValidIP(ipStr string) (valid bool) {
 	return
 }
 
-func connect(host string, port string, timeout time.Duration, wg *sync.WaitGroup) error {
+func Connect(host string, port string, timeout time.Duration, wg *sync.WaitGroup) error {
 
 	defer wg.Done()
 
@@ -52,7 +52,7 @@ func ScanIp(ipAddr string) error {
 
 		go func(port int) {
 			defer func() { <-ch }()
-			err := connect(ipAddr, strconv.Itoa(port), time.Second, wg)
+			err := Connect(ipAddr, strconv.Itoa(port), time.Second, wg)
 			if err == nil {
 				fmt.Println("Port ", ipAddr, ":", port, " is open.")
 			}
