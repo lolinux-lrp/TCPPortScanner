@@ -2,41 +2,66 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net"
+	"os"
+	"strconv"
+	//"sync"
+	"time"
 )
 
-func connect(addr string) error {
-	conn, err := net.Dial("tcp", addr)
-	if err != nil {
-		fmt.Println("Error:", err)
+func IsValidIP(ipStr string) (valid bool) {
+	ip := net.ParseIP(ipStr)
+	valid = ip != nil
+	return 
+}
+
+func connect(host string, port string, timeout time.Duration/* , wg *sync.WaitGroup, ch chan bool*/) error {
+	
+    // DialTimeout sets a deadline for the connection attempt
+    conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), timeout)
+    if err != nil {
 		return err
 	}
-	defer conn.Close()
-
-	data := []byte("Hello, Server!")
-	_, err = conn.Write(data)
-	if err != nil {
-		fmt.Println("Error:", err)
+	if conn != nil { //if conn is nil calling .Close() will give invalid memory address error 
+		defer conn.Close()
 	}
-
-	return err
+		
+	return nil;
 }
 
 func ScanIp(ipAddr string) error {
 
-	for port:=8000; port<8100; port++ {
-		portAddr := fmt.Sprintf("%v:%v",ipAddr,port);
-		err := connect(portAddr);
-		if err!=nil{
-			fmt.Println("Error: ",err);
-		}else{
-			fmt.Println("Port ",portAddr," is open.");
+	valid := IsValidIP(ipAddr) //check whether given ip address is valid or not
+
+	if !valid {
+		err := fmt.Errorf("Invalid IP address")
+		fmt.Println("Error: ", err)
+		return err
+	}
+
+	// ch := make(chan bool,100);
+	// wg := new(sync.WaitGroup);
+
+	for port := 0; port < 65536; port++ {
+		//wg.Add(1);
+		err := connect(ipAddr,strconv.Itoa(port),time.Second)
+		if err == nil {
+			fmt.Println("Port ", ipAddr,":",port, " is open.")
 		}
 	}
-	return nil;
+	return nil
 }
 
 func main() {
-	err := ScanIp("localhost")
-	fmt.Println(err)
+	if len(os.Args) < 2 {
+		log.Fatal("Please enter Ipv4 addr to scan for ports")
+	}
+	args := os.Args[1]
+
+	err := ScanIp(args)
+
+	if err != nil {
+		log.Fatal(err)
+	}
 }
